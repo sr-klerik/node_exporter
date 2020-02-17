@@ -57,7 +57,7 @@ func NewCPUCollector(logger log.Logger) (Collector, error) {
 		cpuInfo: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, cpuCollectorSubsystem, "info"),
 			"CPU information from /proc/cpuinfo.",
-			[]string{"package", "core", "cpu", "vendor", "family", "model", "microcode", "cachesize"}, nil,
+			[]string{"package", "core", "cpu", "vendor", "family", "model", "modelname", "microcode", "cachesize"}, nil,
 		),
 		cpuGuest: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, cpuCollectorSubsystem, "guest_seconds_total"),
@@ -110,6 +110,7 @@ func (c *cpuCollector) updateInfo(ch chan<- prometheus.Metric) error {
 			cpu.VendorID,
 			cpu.CPUFamily,
 			cpu.Model,
+			cpu.ModelName,
 			cpu.Microcode,
 			cpu.CacheSize)
 	}
