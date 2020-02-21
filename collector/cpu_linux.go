@@ -31,6 +31,7 @@ type cpuCollector struct {
 	fs                 procfs.FS
 	cpu                *prometheus.Desc
 	cpuInfo            *prometheus.Desc
+	cpuMHz             *prometheus.Desc
 	cpuGuest           *prometheus.Desc
 	cpuCoreThrottle    *prometheus.Desc
 	cpuPackageThrottle *prometheus.Desc
@@ -59,6 +60,11 @@ func NewCPUCollector(logger log.Logger) (Collector, error) {
 			"CPU information from /proc/cpuinfo.",
 			[]string{"package", "core", "cpu", "vendor", "family", "model", "modelname", "microcode", "cachesize"}, nil,
 		),
+		cpuMHz: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, cpuCollectorSubsystem, "mhz"),
+			"CPU MHz information from /proc/cpuinfo.",
+			[]string{"package", "core", "cpu", "vendor", "family", "model", "modelname", "microcode", "cachesize"}, nil,
+		),
 		cpuGuest: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, cpuCollectorSubsystem, "guest_seconds_total"),
 			"Seconds the cpus spent in guests (VMs) for each mode.",
@@ -85,6 +91,9 @@ func (c *cpuCollector) Update(ch chan<- prometheus.Metric) error {
 			return err
 		}
 	}
+	if err := c.updateMHz(ch); err != nil {
+		return err
+	}
 	if err := c.updateStat(ch); err != nil {
 		return err
 	}
@@ -104,6 +113,28 @@ func (c *cpuCollector) updateInfo(ch chan<- prometheus.Metric) error {
 		ch <- prometheus.MustNewConstMetric(c.cpuInfo,
 			prometheus.GaugeValue,
 			1,
+			cpu.PhysicalID,
+			cpu.CoreID,
+			fmt.Sprintf("%d", cpu.Processor),
+			cpu.VendorID,
+			cpu.CPUFamily,
+			cpu.Model,
+			cpu.ModelName,
+			cpu.Microcode,
+			cpu.CacheSize)
+	}
+	return nil
+}
+
+func (c *cpuCollector) updateMHz(ch chan<- prometheus.Metric) error {
+	info, err := c.fs.CPUInfo()
+	if err != nil {
+		return err
+	}
+	for _, cpu := range info {
+		ch <- prometheus.MustNewConstMetric(c.cpuMHz,
+			prometheus.GaugeValue,
+			cpu.CPUMHz,
 			cpu.PhysicalID,
 			cpu.CoreID,
 			fmt.Sprintf("%d", cpu.Processor),
